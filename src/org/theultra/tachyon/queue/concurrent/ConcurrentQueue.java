@@ -1,8 +1,10 @@
-package org.theultra.tachyon.queue;
+package org.theultra.tachyon.queue.concurrent;
 
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.concurrent.locks.LockSupport;
+
+import org.theultra.tachyon.queue.IBlockingQueue;
 
 /**
  * It is NOT a thread-safe None Block Queue. It is safe when there is only one sender thread and one receiver thread.
@@ -12,12 +14,11 @@ import java.util.concurrent.locks.LockSupport;
  */
 public class ConcurrentQueue<T> implements IBlockingQueue<T>{
 	private static final int MIN_PACKTIME_NS = 8 << 4; 
-	private static final int MAX_PACKTIME_NS = 8 << 6;
+	private static final int MAX_PACKTIME_NS = 8 << 16;
 	
 	private static final int INTERNAL_PACK_COUNT = 1; //must greater than 0;
-	//private static final long MAX_COUNTER = 0x7000000000000000l;
-	private static final int MIN_CAPACITY = 2;
-	private static final int DEFAULT_CAPALITY = 1024 * 128;
+	private static final int MIN_CAPACITY = 1024 * 8;
+	private static final int DEFAULT_CAPACITY = 1024 * 128;
 	private static final int MAX_CAPACITY = 1024 * 1024 * 4;
 	private String name = "Unnamed Queue";
 	private final byte[] falseOffer;
@@ -30,12 +31,11 @@ public class ConcurrentQueue<T> implements IBlockingQueue<T>{
 	
 	final AtomicLong[] als = new AtomicLong[11];
 	
-	int i =0,j=0;
 	/**
 	 * Create a NoneBlockArrayQueue with default capacity 1024 * 128
 	 */
 	public ConcurrentQueue() {
-		this.capacity = DEFAULT_CAPALITY;
+		this.capacity = DEFAULT_CAPACITY;
 		array = new AtomicReferenceArray<T>(this.capacity);
 		falseOffer = new byte[this.capacity];
 		falsePoll = new byte[this.capacity];
@@ -49,7 +49,7 @@ public class ConcurrentQueue<T> implements IBlockingQueue<T>{
 	}
 	
 	/**
-	 * Create a NoneBlockArrayQueue with the capacity is a power and just greater than given prefer one, MIN_CAPACITY = 256, MAX_CAPACITY = 1024 * 1024 * 4 
+	 * Create a NoneBlockArrayQueue with the capacity is a power and just greater than given prefer one, MIN_CAPACITY = 1024 * 8, MAX_CAPACITY = 1024 * 1024 * 4 
 	 */	
 	public ConcurrentQueue(int preferCapacity) {
 		this.capacity = IBlockingQueue.getPow2Value(preferCapacity, MIN_CAPACITY, MAX_CAPACITY);
