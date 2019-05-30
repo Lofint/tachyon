@@ -32,6 +32,7 @@ public class ConcurrentI64HashMap<T extends I64Obj>{
 	private final MapLock<T>[] rLockers;
 	private final int lockM;
 	
+	@SuppressWarnings("unchecked")
 	public ConcurrentI64HashMap() {
 		this.capacity = DEFAULT_CAPACITY;
 		
@@ -55,6 +56,7 @@ public class ConcurrentI64HashMap<T extends I64Obj>{
 	 * 
 	 * @param capacity the prefer capacity by user, the real capacity will be an n power of 2 which just greater than the given capacity.
 	 */
+	@SuppressWarnings("unchecked")
 	public ConcurrentI64HashMap(int capacity) {
 		if(capacity < MIN_CAPACITY) capacity = MIN_CAPACITY;
 		else {
@@ -90,6 +92,7 @@ public class ConcurrentI64HashMap<T extends I64Obj>{
 	 * @param obj
 	 * @return if replaced current obj, return true;
 	 */	
+	@SuppressWarnings("unchecked")
 	public final boolean put(T obj) {
 		long key = obj.getId();
 		int p = position(key);
@@ -162,7 +165,7 @@ public class ConcurrentI64HashMap<T extends I64Obj>{
 		if((cur = baseArray[p]) == null) return null;
 
 		if(cur.getClass() == I64MapNode.class) {
-			I64MapNode cNode = ((I64MapNode) cur);
+			I64MapNode<T> cNode = ((I64MapNode<T>) cur);
 			for(int t2 =0; t2 < 2; t2++) {
 				while(true){
 					I64Obj next = cNode.next;
@@ -174,7 +177,7 @@ public class ConcurrentI64HashMap<T extends I64Obj>{
 						if(obj.getId() == key) return (T) obj;
 						if(position(obj.getId()) != p) break;
 						if(next.getClass() == I64MapNode.class) {
-							cNode = ((I64MapNode) next);
+							cNode = ((I64MapNode<T>) next);
 						} else {
 							if(key == next.getId()) return (T) next;
 							else return null;
@@ -184,7 +187,7 @@ public class ConcurrentI64HashMap<T extends I64Obj>{
 				
 				cur = baseArray[p];
 				if(cur.getClass() == I64MapNode.class) {
-					cNode = ((I64MapNode) cur);
+					cNode = ((I64MapNode<T>) cur);
 				} else {
 					if(key == cur.getId()) return (T)cur;
 					return null;

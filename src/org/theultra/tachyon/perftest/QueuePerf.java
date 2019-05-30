@@ -7,6 +7,7 @@ import org.theultra.tachyon.queue.SimpleBlockingQueue;
 import org.theultra.tachyon.queue.concurrent.ConcurrentQueue;
 
 
+@SuppressWarnings("unused")
 public class QueuePerf {
 	static int ITERATIONS = 1024 * 1024 * 3 * 5 * 7 * 4 ;
 	static int NUM_PRODUCER = 1;

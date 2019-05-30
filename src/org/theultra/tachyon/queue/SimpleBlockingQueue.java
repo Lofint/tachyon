@@ -1,6 +1,5 @@
 package org.theultra.tachyon.queue;
 
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
 
 /**
@@ -8,7 +7,6 @@ import java.util.concurrent.locks.LockSupport;
  * @author lofint
  * @param <T> 
  */
-@SuppressWarnings("restriction")
 public class SimpleBlockingQueue<T> implements IBlockingQueue<T> {
 	private static final int MIN_PACKTIME_NS = 8 << 4; 
 	private static final int MAX_PACKTIME_NS = 8 << 16;
