@@ -13,10 +13,10 @@ import org.theultra.tachyon.queue.IBlockingQueue;
  * @param <T> 
  */
 public class ConcurrentQueue<T> implements IBlockingQueue<T>{
-	private static final int MIN_PACKTIME_NS = 8 << 4; 
-	private static final int MAX_PACKTIME_NS = 8 << 16;
+	private static final int MIN_WAITTIME_NS = 16384; 
+	private static final int MAX_WAITTIME_NS = MIN_WAITTIME_NS << 4;
 	
-	private static final int INTERNAL_PACK_COUNT = 1; //must greater than 0;
+	private static final int INTERNAL_SPIN_COUNT = 1; //must greater than 0;
 	private static final int MIN_CAPACITY = 1024 * 8;
 	private static final int DEFAULT_CAPACITY = 1024 * 128;
 	private static final int MAX_CAPACITY = 1024 * 1024 * 4;
@@ -82,9 +82,9 @@ public class ConcurrentQueue<T> implements IBlockingQueue<T>{
 			}
 			if(array.get(p) != null) return false;
 			if(this.head.compareAndSet(head, head + 1)) {
-				for(int i = 0; i < INTERNAL_PACK_COUNT; i ++) {
+				for(int i = 0; i < INTERNAL_SPIN_COUNT; i ++) {
 					if(!array.compareAndSet(p, null, obj)) {
-						LockSupport.parkNanos(2 << i);
+						wait(2 << i);
 					} else return true; 
 				}
 				synchronized(falseOffer) {
@@ -100,21 +100,21 @@ public class ConcurrentQueue<T> implements IBlockingQueue<T>{
 	
 	public boolean offer(T obj, long nanoTimeout){
 		long w = 0;
-		int packTime = MIN_PACKTIME_NS;
+		int waitTime = MIN_WAITTIME_NS;
 		while(!offer(obj)) {
-			w += packTime;
+			w += waitTime;
 			if(nanoTimeout > 0 && w > nanoTimeout) return false;
-			LockSupport.parkNanos(packTime);
-			if(packTime < MAX_PACKTIME_NS) packTime <<= 1;
+			wait(waitTime);
+			if(waitTime < MAX_WAITTIME_NS) waitTime <<= 1;
 		}
 		return true;
 	}
 	
 	public void put(T obj){
-		int packTime = MIN_PACKTIME_NS;
+		int waitTime = MIN_WAITTIME_NS;
 		while(!offer(obj)) {
-			LockSupport.parkNanos(packTime);
-			if(packTime < MAX_PACKTIME_NS) packTime <<= 1;
+			wait(waitTime);
+			if(waitTime < MAX_WAITTIME_NS) waitTime <<= 1;
 		}
 	} 
 	
@@ -134,9 +134,9 @@ public class ConcurrentQueue<T> implements IBlockingQueue<T>{
 			r = array.get(p);
 			if(r == null) return null;
 			if(this.tail.compareAndSet(tail, tail + 1)) {
-				for(int i = 0; i < INTERNAL_PACK_COUNT; i ++) {
+				for(int i = 0; i < INTERNAL_SPIN_COUNT; i ++) {
 					if((r = array.getAndSet(p, null)) == null){
-						LockSupport.parkNanos(2 << i);
+						wait(2 << i);
 					} else return r;
 				}
 				synchronized(falsePoll) {
@@ -152,12 +152,12 @@ public class ConcurrentQueue<T> implements IBlockingQueue<T>{
 	public T poll(long nanoTimeout){
 		T r;
 		long w = 0;
-		int packTime = MIN_PACKTIME_NS;
+		int waitTime = MIN_WAITTIME_NS;
 		while((r=poll()) == null) {
-			w += packTime;
+			w += waitTime;
 			if(nanoTimeout > 0 && w > nanoTimeout) return null;
-			LockSupport.parkNanos(packTime);
-			if(packTime < MAX_PACKTIME_NS) packTime <<= 1;
+			wait(waitTime);
+			if(waitTime < MAX_WAITTIME_NS) waitTime <<= 1;
 		}
 		return r;
 	}
@@ -165,10 +165,10 @@ public class ConcurrentQueue<T> implements IBlockingQueue<T>{
 	
 	public T take(){
 		T r;
-		int packTime = MIN_PACKTIME_NS;
+		int waitTime = MIN_WAITTIME_NS;
 		while((r=poll()) == null) {
-			LockSupport.parkNanos(packTime);
-			if(packTime < MAX_PACKTIME_NS) packTime <<= 1;
+			wait(waitTime);
+			if(waitTime < MAX_WAITTIME_NS) waitTime <<= 1;
 		}
 		return r;
 	}
@@ -193,5 +193,15 @@ public class ConcurrentQueue<T> implements IBlockingQueue<T>{
 
 	public void setName(String name) {
 		this.name = name;
+	}
+	
+	private Object locker = new Object();
+	private void wait(int nanos) {
+		if(nanos > (MIN_WAITTIME_NS << 2)) {
+			LockSupport.parkNanos(locker, nanos);
+		} else {
+			long t0 = System.nanoTime();
+			while(System.nanoTime() - t0 < nanos);
+		}
 	}
 }
